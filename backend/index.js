@@ -22,6 +22,52 @@ let retirementHistory = [
   }
 ];
 
+let transactions = [
+  {
+    id: 't1',
+    type: 'Buy',
+    projectId: 'inv5',
+    projectName: 'BioFuel Farms Punjab',
+    amount: 10,            // bonds or credits
+    date: '2025-07-07',
+    txHash: '0xabc123...'
+  },
+  {
+    id: 't2',
+    type: 'Retire',
+    projectId: 'batch1',
+    projectName: 'EcoTree Solar Farm',
+    amount: 30,
+    date: '2025-07-06',
+    txHash: '0xdef456...'
+  },
+  // more entries…
+];
+
+let investments = [
+  {
+    id: "inv5",
+    projectName: "BioFuel Farms Punjab",
+    bondsOwned: 15,
+    bondPrice: 110,
+    roi: 11.0
+  },
+  {
+    id: "inv3",
+    projectName: "WindWorks Gujarat",
+    bondsOwned: 10,
+    bondPrice: 90,
+    roi: 8.2
+  },
+  {
+    id: "inv1",
+    projectName: "GreenSolar India",
+    bondsOwned: 8,
+    bondPrice: 100,
+    roi: 9.1
+  }
+];
+
 app.post('/api/user/retire', (req, res) => {
   const { credits, proof } = req.body;
   const newEntry = {
@@ -107,6 +153,14 @@ app.post('/api/mint', express.json(), (req, res) => {
     description,
     contractSnippet: `mintCredit("${project}", ${estimatedCredits});`
   });
+});
+
+app.get('/api/user/transactions', (req, res) => {
+  res.json(transactions);
+});
+
+app.get('/api/user/investments', (req, res) => {
+  res.json(investments);
 });
 
 app.listen(PORT, () => {

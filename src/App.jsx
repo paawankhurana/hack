@@ -11,6 +11,8 @@ import Dashboard from './pages/Dashboard'
 import Admin from './pages/Admin'
 import CarbonMarketplace from './pages/CarbonMarketplace'
 import CompanyMint from './pages/CompanyMint'
+import Investments from './pages/Investments'
+import InvestmentDetails from './pages/InvestmentDetails'
 
 function App() {
   const [walletAddress, setWalletAddress] = useState(null)
@@ -47,6 +49,8 @@ function App() {
           <Route path="/marketplace" element={<CarbonMarketplace />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/company/mint" element={<CompanyMint />} />
+          <Route path="/investments" element={<Investments />} />
+          <Route path="/investments/:id" element={<InvestmentDetails walletAddress={walletAddress} />} />
         </Routes>
       </main>
       <Footer />
