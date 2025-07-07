@@ -1,10 +1,23 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, Target, TrendingUp, Award, Calendar, Leaf, Zap, Users } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { useLocation } from 'react-router-dom'
+import RetirementHistory from './RetirementHistory'
+import axios from 'axios'
 
-const Dashboard = () => {
+const Dashboard = ({ walletAddress, balance, setNavbarBalance }) => {
   const [timeframe, setTimeframe] = useState('month')
+  const [retireAmount, setRetireAmount] = useState("")
+  const [isRetiring, setIsRetiring] = useState(false)
+  const [retireSuccess, setRetireSuccess] = useState(false)
+  const [error, setError] = useState("")
+  const [uploadFile, setUploadFile] = useState(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verificationPass, setVerificationPass] = useState(null) // null | true | false
+  const [estimatedCredits, setEstimatedCredits] = useState(null)
+  const [confirmEstimate, setConfirmEstimate] = useState(false)
+  const historyRef = useRef(null)
 
   // Mock data
   const emissionsData = [
@@ -33,13 +46,14 @@ const Dashboard = () => {
     { id: 6, title: 'Planet Protector', description: 'Offset 1 ton of CO₂', icon: '🌍', earned: false }
   ]
 
-  const leaderboard = [
-    { rank: 1, name: 'EcoWarrior23', emissions: 156, badge: '🏆' },
-    { rank: 2, name: 'GreenGuru', emissions: 189, badge: '🥈' },
-    { rank: 3, name: 'SustainableSam', emissions: 203, badge: '🥉' },
-    { rank: 4, name: 'You', emissions: 218, badge: '🌱' },
-    { rank: 5, name: 'ClimateChamp', emissions: 234, badge: '♻️' }
-  ]
+  // Leaderboard mock data
+  const leaderboardData = [
+    { name: "GreenGuru", credits: 450, wallet: "0x123...4Abc" },
+    { name: "CarbonCrusher", credits: 390, wallet: "0x5d6...EfG9" },
+    { name: "SustainableSam", credits: 322, wallet: "0xAb9...8888" },
+    { name: "You", credits: balance, wallet: walletAddress || "0xAbC123...789XyZ" },
+    { name: "ClimateChamp", credits: 289, wallet: "0x999...Fa12" },
+  ];
 
   const recommendations = [
     {
@@ -61,6 +75,62 @@ const Dashboard = () => {
       category: 'Food'
     }
   ]
+
+  const handleVerify = () => {
+    if (!uploadFile) {
+      setError("Please upload proof first.")
+      return
+    }
+    setError("")
+    setIsVerifying(true)
+    setTimeout(() => {
+      const passed = Math.random() > 0.1 // 90% pass
+      setIsVerifying(false)
+      setVerificationPass(passed)
+      if (passed) {
+        // simulate AI estimation
+        const estimate = Math.floor(Math.random() * 40) + 10 // 10–50 credits
+        setEstimatedCredits(estimate)
+      }
+    }, 2000)
+  }
+
+  const handleRetire = async (amt) => {
+    const amount = Number(amt ?? retireAmount)
+    setError("")
+    if (!amount || amount <= 0 || amount > balance) {
+      setError("Please enter a valid amount to retire.")
+      return
+    }
+    setIsRetiring(true)
+    try {
+      const res = await axios.post('http://localhost:5001/api/user/retire', {
+        credits: amount,
+        proof: uploadFile?.name || 'manual_entry.png'
+      })
+      if (res.data.success) {
+        setNavbarBalance(prev => prev - amount)
+        setIsRetiring(false)
+        setRetireSuccess(true)
+        setRetireAmount("")
+        setUploadFile(null)
+        setVerificationPass(null)
+        if (historyRef.current) historyRef.current()
+      }
+    } catch (err) {
+      setIsRetiring(false)
+      setError("❌ Failed to retire credits.")
+    }
+  }
+
+  useEffect(() => {
+    if (confirmEstimate && estimatedCredits) {
+      setRetireAmount(estimatedCredits)
+      handleRetire(estimatedCredits)
+      setConfirmEstimate(false)
+      setEstimatedCredits(null)
+    }
+  }, [confirmEstimate])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-light-mint to-white">
@@ -266,9 +336,9 @@ const Dashboard = () => {
                 Leaderboard
               </h2>
               <div className="space-y-3">
-                {leaderboard.map((user) => (
+                {leaderboardData.map((user, idx) => (
                   <div
-                    key={user.rank}
+                    key={idx}
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       user.name === 'You'
                         ? 'bg-leaf-green text-white'
@@ -276,15 +346,14 @@ const Dashboard = () => {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <span className="text-lg">{user.badge}</span>
+                      <span className="text-lg">{user.name}</span>
                       <div>
-                        <span className="font-semibold text-sm">{user.name}</span>
                         <div className="text-xs opacity-75">
-                          {user.emissions} kg CO₂ saved
+                          {user.credits} kg CO₂ saved
                         </div>
                       </div>
                     </div>
-                    <span className="font-bold">#{user.rank}</span>
+                    <span className="font-bold">#{idx + 1}</span>
                   </div>
                 ))}
               </div>
@@ -316,6 +385,123 @@ const Dashboard = () => {
             </motion.div>
           </div>
         </div>
+
+        <div className="retire-section flex items-center gap-4 mt-8">
+          <div className="w-full mb-6 bg-gray-50 rounded-lg p-4 flex flex-col items-center">
+            <div className="text-xs text-gray-500 mb-1">Connected Wallet</div>
+            <div className="font-mono text-base mb-2">{walletAddress || 'Not connected'}</div>
+            <div className="text-lg font-semibold">CRBX Balance: <span className="text-leaf-green">{balance}</span></div>
+          </div>
+          <div className="w-full flex flex-col items-center mb-4">
+            <input
+              type="number"
+              placeholder="Credits to retire"
+              value={retireAmount}
+              min={1}
+              max={balance}
+              onChange={e => setRetireAmount(e.target.value)}
+              className="border-2 border-leaf-green rounded-lg px-4 py-3 text-lg w-full mb-2 focus:outline-none focus:ring-2 focus:ring-leaf-green"
+              disabled={isRetiring || isVerifying || verificationPass !== null}
+            />
+            {/* Upload Section */}
+            <div className="upload-section w-full mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Upload Emission Proof:
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.png"
+                  onChange={e => setUploadFile(e.target.files[0])}
+                  className="block mt-1"
+                  disabled={isRetiring || isVerifying || verificationPass === true}
+                />
+              </label>
+              {uploadFile && <div className="text-xs text-gray-500 mt-1">Selected: {uploadFile.name}</div>}
+            </div>
+            {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+            <button
+              onClick={handleVerify}
+              className="btn-green w-full py-3 text-lg font-bold rounded-lg mt-2"
+              disabled={isVerifying || isRetiring || verificationPass === true}
+            >
+              Verify Proof
+            </button>
+            <button
+              onClick={() => handleRetire()}
+              className="btn-green w-full py-3 text-lg font-bold rounded-lg mt-2"
+              disabled={isRetiring || verificationPass !== true}
+            >
+              Retire Credits
+            </button>
+          </div>
+        </div>
+
+        {/* Verification Modals */}
+        {isVerifying && (
+          <div className="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-8 rounded-lg shadow text-xl font-semibold flex items-center gap-2">
+              <span className="animate-spin mr-2">🔍</span> Verifying with AI/Auditor…
+            </div>
+          </div>
+        )}
+        {verificationPass === false && (
+          <div className="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-8 rounded-lg shadow text-xl font-semibold flex flex-col items-center">
+              ❌ Verification Failed. Please submit clearer proof.
+              <button onClick={() => { setVerificationPass(null); setEstimatedCredits(null); }} className="btn-green mt-6">Retry</button>
+            </div>
+          </div>
+        )}
+        {verificationPass && estimatedCredits && !confirmEstimate && (
+          <div className="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-8 rounded-lg shadow text-xl font-semibold flex flex-col items-center text-center">
+              ✅ AI Verification Passed<br />
+              📈 Based on the data, you need to retire <b>{estimatedCredits}</b> credits.<br /><br />
+              <button onClick={() => setConfirmEstimate(true)} className="btn-green mb-2">Agree & Retire</button>
+              <button onClick={() => { setVerificationPass(null); setEstimatedCredits(null); }} className="btn-secondary">Cancel</button>
+            </div>
+          </div>
+        )}
+        {isRetiring && (
+          <div className="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-8 rounded-lg shadow text-xl font-semibold flex items-center gap-2">
+              <span className="animate-spin mr-2">🔄</span> Retiring credits…
+            </div>
+          </div>
+        )}
+        {retireSuccess && (
+          <div className="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-8 rounded-lg shadow text-xl font-semibold flex flex-col items-center">
+              ✅ Successfully retired {retireAmount} credits!
+              <button onClick={() => setRetireSuccess(false)} className="btn-green mt-6">Close</button>
+            </div>
+          </div>
+        )}
+
+        {/* Leaderboard Section */}
+        <div className="leaderboard-section mt-12 bg-white rounded-2xl shadow-xl p-8 max-w-xl w-full mx-auto">
+          <h3 className="text-2xl font-bold mb-4 flex items-center">�� Top Retirers</h3>
+          <table className="min-w-full text-left border rounded-lg overflow-hidden">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="py-2 px-4">#</th>
+                <th className="py-2 px-4">Name</th>
+                <th className="py-2 px-4">Credits Retired</th>
+                <th className="py-2 px-4">Wallet</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboardData.map((user, idx) => (
+                <tr key={idx} className={user.name === 'You' ? 'bg-leaf-green text-white font-bold' : 'border-t'}>
+                  <td className="py-2 px-4">{idx + 1}</td>
+                  <td className="py-2 px-4">{user.name}</td>
+                  <td className="py-2 px-4">{user.credits}</td>
+                  <td className="py-2 px-4 font-mono">{user.wallet}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <RetirementHistory refetchRef={historyRef} />
       </div>
     </div>
   )

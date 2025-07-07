@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Menu, X, Leaf } from 'lucide-react'
 
-const Navbar = () => {
+const Navbar = ({ walletAddress, tokenBalance, connectWallet, isConnecting }) => {
   const [isOpen, setIsOpen] = useState(false)
   const location = useLocation()
 
@@ -57,7 +57,29 @@ const Navbar = () => {
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
+
+          {/* Wallet Connect */}
+          <div className="wallet-connect flex items-center">
+            {!walletAddress && !isConnecting && (
+              <button onClick={connectWallet} className="btn-green ml-4">Connect Wallet</button>
+            )}
+            {walletAddress && !isConnecting && (
+              <div className="ml-4 text-right">
+                <p className="text-sm font-mono">Connected: {walletAddress}</p>
+                <p className="text-sm">CRBX Balance: {tokenBalance}</p>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Connecting Modal */}
+        {isConnecting && (
+          <div className="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div className="bg-white p-8 rounded-lg shadow text-xl font-semibold flex items-center gap-2">
+              <span className="animate-spin mr-2">🔄</span> Connecting to MetaMask...
+            </div>
+          </div>
+        )}
 
         {/* Mobile Navigation */}
         {isOpen && (
